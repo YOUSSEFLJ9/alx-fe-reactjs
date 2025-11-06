@@ -1,5 +1,6 @@
 import { useContext } from 'react';
 import UserInfo from './UserInfo';
+import { UserContext } from './UserContext';
 
 
 function ProfilePage() {
