@@ -3,7 +3,7 @@ import UserInfo from './UserInfo';
 
 
 function ProfilePage() {
-  useContext;
+  useContext(UserContext);
   return <UserInfo/>;
 }
 
