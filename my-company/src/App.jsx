@@ -14,6 +14,7 @@ function App() {
   const [count, setCount] = useState(0)
 
   return (
+    <div style={{ width: "100%", height: "100vh" }}>
   <BrowserRouter>
   <Navbar/>
   <Routes>
@@ -24,7 +25,7 @@ function App() {
     </Routes>
     <Footer/>
   </BrowserRouter>
-
+  </div>
   )
 }
 
