@@ -3,7 +3,7 @@ import { useState } from "react";
 
 const RecipeDetails = ({ recipeId, onClose }) => {
   const recipe = useRecipeStore(state =>
-    state.recipes.find(r => r.id === recipeId)
+    state.recipes.find(recipe => recipe.id === recipeId)
   );
 
   const deleteRecipe = useRecipeStore(state => state.deleteRecipe);
