@@ -1,7 +1,9 @@
 import { useRecipeStore } from "./recipeStore";
+import { useNavigate } from "react-router-dom";
 
-const RecipeList = ({ onSelect }) => {
+const RecipeList = () => {
   const recipes = useRecipeStore((state) => state.recipes);
+  const navigate = useNavigate();
 
   return (
     <div style={{ marginTop: "20px" }}>
@@ -13,10 +15,7 @@ const RecipeList = ({ onSelect }) => {
             <h3>{recipe.title}</h3>
             <p>{recipe.description}</p>
 
-            <button
-              onClick={() => onSelect(recipe.id)}
-              style={{ marginTop: "5px" }}
-            >
+            <button onClick={() => navigate(`/recipes/${recipe.id}`)} style={{ marginTop: "5px" }}>
               View Details
             </button>
           </div>

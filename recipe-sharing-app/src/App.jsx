@@ -1,27 +1,31 @@
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import AddRecipeForm from "./components/AddRecipeForm";
 import RecipeList from "./components/RecipeList";
 import RecipeDetails from "./components/RecipeDetails";
-import { useState } from "react";
+import EditRecipeForm from "./components/EditRecipeForm";
 
 function App() {
-  const [selectedId, setSelectedId] = useState(null);
-
   return (
-    <div style={{ padding: "20px", maxWidth: "600px", margin: "0 auto" }}>
-      <h1>Recipe Sharing App</h1>
+    <BrowserRouter>
+      <div style={{ padding: "20px", maxWidth: "600px", margin: "0 auto" }}>
+        <h1>Recipe Sharing App</h1>
 
-      {selectedId ? (
-        <RecipeDetails
-          recipeId={selectedId}
-          onClose={() => setSelectedId(null)}
-        />
-      ) : (
-        <>
-          <AddRecipeForm />
-          <RecipeList onSelect={setSelectedId} />
-        </>
-      )}
-    </div>
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <>
+                <AddRecipeForm />
+                <RecipeList />
+              </>
+            }
+          />
+
+          <Route path="/recipes/:id" element={<RecipeDetails />} />
+          <Route path="/recipes/:id/edit" element={<EditRecipeForm />} />
+        </Routes>
+      </div>
+    </BrowserRouter>
   );
 }
 

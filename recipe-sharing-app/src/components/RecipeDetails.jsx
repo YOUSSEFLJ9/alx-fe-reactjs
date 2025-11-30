@@ -1,57 +1,34 @@
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { useRecipeStore } from "./recipeStore";
-import { useState } from "react";
+import DeleteRecipeButton from "./DeleteRecipeButton";
 
-const RecipeDetails = ({ recipeId, onClose }) => {
-  const recipe = useRecipeStore(state =>
-    state.recipes.find(recipe => recipe.id === recipeId)
+const RecipeDetails = () => {
+  const { id } = useParams();
+  const recipeId = Number(id);
+  const recipe = useRecipeStore((state) =>
+    state.recipes.find((r) => r.id === recipeId)
   );
 
-  const deleteRecipe = useRecipeStore(state => state.deleteRecipe);
-  const updateRecipe = useRecipeStore(state => state.updateRecipe);
-
-  const [title, setTitle] = useState(recipe.title);
-  const [description, setDescription] = useState(recipe.description);
+  const navigate = useNavigate();
 
   if (!recipe) return <div>Recipe not found</div>;
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    updateRecipe({ id: recipeId, title, description });
-    onClose();
-  };
-
   return (
-    <div>
-      <h1>Edit Recipe</h1>
+    <div style={{ padding: "20px" }}>
+      <h1>{recipe.title}</h1>
+      <p>{recipe.description}</p>
 
-      <form onSubmit={handleSubmit}>
-        <input
-          type='text'
-          value={title}
-          onChange={e => setTitle(e.target.value)}
-        />
+      <div style={{ marginTop: "12px" }}>
+        <Link to={`/recipes/${recipeId}/edit`}>
+          <button>Edit</button>
+        </Link>
 
-        <textarea
-          value={description}
-          onChange={e => setDescription(e.target.value)}
-        />
+        <DeleteRecipeButton id={recipeId} />
 
-        <button type='submit'>Update</button>
-      </form>
-
-      <button
-        onClick={() => {
-          deleteRecipe(recipeId);
-          onClose();
-        }}
-        style={{ marginTop: "10px", color: "red" }}
-      >
-        Delete
-      </button>
-
-      <button onClick={onClose} style={{ marginLeft: "10px" }}>
-        Back
-      </button>
+        <button onClick={() => navigate(-1)} style={{ marginLeft: "8px" }}>
+          Back
+        </button>
+      </div>
     </div>
   );
 };
