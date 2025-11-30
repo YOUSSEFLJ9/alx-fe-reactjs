@@ -17,6 +17,7 @@ const RecipeDetails = () => {
     <div style={{ padding: "20px" }}>
       <h1>{recipe.title}</h1>
       <p>{recipe.description}</p>
+      <p style={{ fontSize: "12px", color: "#666" }}>ID: {recipe.id}</p>
 
       <div style={{ marginTop: "12px" }}>
         <Link to={`/recipes/${recipeId}/edit`}>
