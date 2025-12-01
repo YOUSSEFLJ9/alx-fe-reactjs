@@ -16,9 +16,10 @@ const RecipeList = () => {
             <h3>{recipe.title}</h3>
             <p>{recipe.description}</p>
 
-            <button onClick={() => navigate(`/recipes/${recipe.id}`)} style={{ marginTop: "5px" }}>
-              View Details
-            </button>
+            <Link to={`/recipes/${recipe.id}`}>
+  <button style={{ marginTop: "5px" }}>View Details</button>
+</Link>
+
           </div>
         ))
       )}
@@ -26,4 +27,4 @@ const RecipeList = () => {
   );
 };
 
-export default RecipeList;
+export default RecipeList; 
