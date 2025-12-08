@@ -45,7 +45,7 @@ export default function Search() {
                 </div>
             )}
             {isLoading && <p>Loading...</p>}
-            {error && <p>Error fetching user data. Please try again.</p>}
+            {error && <p>Looks like we cant find the user</p>}
         </form>
         </div>
 }
