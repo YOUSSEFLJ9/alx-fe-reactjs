@@ -30,14 +30,18 @@ export default function Search() {
             setUserData(null);
         }
     };
-    return <div>
-        <form action="" onSubmit={handleFormSubmit}>
-            <input type="text" placeholder="Search GitHub users..." value={searchTerm} onChange={handleInputChange} />
-            <button type="submit">Search</button>
+    return <div className='items-center m-4 '>
+        <form action="" onSubmit={handleFormSubmit} className='flex flex-row items-center gap-4'>
+            <input className=' rounded-sm p-1 border border-gray-300' type="text" placeholder="Search GitHub users..." value={searchTerm} onChange={handleInputChange} />
+            <input className='' text="text" placeholder=''> </input>
+            <button className='bg-blue-500 w-20 rounded-xl' type="submit">Search</button>
+        </form>
+            <div className='mt-4 flex flex-col items-center'>
+
             {userData && (
                 <div>
                     <h2>{userData.login}</h2>
-                    <img src={userData.avatar_url} alt={`${userData.login}'s avatar`} width="100" />
+                    <img className='rounded-s-xl ' src={userData.avatar_url} alt={`${userData.login}'s avatar`} width="100" />
                     <p>Followers: {userData.followers}</p>
                     <p>Following: {userData.following}</p>
                     <p>Public Repos: {userData.public_repos}</p>
@@ -46,6 +50,6 @@ export default function Search() {
             )}
             {isLoading && <p>Loading...</p>}
             {error && <p>Looks like we cant find the user</p>}
-        </form>
+            </div>
         </div>
 }
