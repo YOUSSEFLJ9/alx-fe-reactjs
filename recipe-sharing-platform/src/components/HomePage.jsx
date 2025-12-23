@@ -18,10 +18,10 @@ export default  function HomePage () {
             </h1>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {recipes.map((recipe) => (
-                    <div key={recipe.id} className="bg-white rounded-lg shadow-md overflow-hidden">
+                    <div key={recipe.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300 sm:mx-4 ">
                         <img src={recipe.image} alt={recipe.title} className="w-full h-48 object-cover"/>
                         <div className="p-4">
-                            <h2 className="text-2xl font-semibold mb-2">{recipe.title}</h2>
+                            <h2 className="text-2xl font-semibold mb-2 text-black">{recipe.title}</h2>
                             <p className="text-gray-700 mb-4">{recipe.summary}</p>
                         </div>
                     </div>
