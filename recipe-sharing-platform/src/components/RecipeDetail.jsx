@@ -83,12 +83,12 @@ function RecipeDetail() {
             <img src={recipe.image} alt={recipe.title} className="w-full rounded-lg mb-6" />
             
             <h2 className="text-2xl font-semibold mb-2">ingredients</h2>
-            <ul className="list-disc pl-5 mb-6">
+            <ul className="list-disc pl-5 mb-6 shadow-sm p-4 bg-white rounded-lg shadow-gray-200">
                 {ingredientsList}
             </ul>
 
             <h2 className="text-2xl font-semibold mb-2">Instructions</h2>
-            <ol className="list-decimal pl-5">
+            <ol className="list-decimal pl-5 shadow-sm p-4 bg-white rounded-lg shadow-gray-200">
                 {instructionsList}  
             </ol>
         </div>
