@@ -19,7 +19,7 @@ export default function AddRecipeForm ()
             summary,
             image,
             ingredients: ingredients.filter(ing => ing.trim() !== ""),
-            instructions: instructions.filter(inst => inst.trim() !== "")
+            instructions: instructions.filter(inst => inst.trim() !== "") //steps
         };
         console.log("New Recipe Submitted: ", newRecipe);
     }
