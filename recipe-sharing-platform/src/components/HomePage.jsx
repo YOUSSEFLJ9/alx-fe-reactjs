@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import recipesData from '../data.json';
 import { Link } from 'react-router-dom';
+import AddRecipeForm from './AddRecipeForm';
 
 export default  function HomePage () {
     const [recipes, setRecipes] = useState([]);
@@ -29,6 +30,11 @@ export default  function HomePage () {
                     </div>
                     </Link>
                 ))}
+            </div>
+            <div className="mt-12">
+                <Link to="/AddRecipeForm" className="inline-block bg-red-600 text-white px-6 py-3 rounded-lg shadow-md hover:bg-red-700 transition-colors duration-300">
+                    Add New Recipe
+                </Link>
             </div>
         </div>
     );
