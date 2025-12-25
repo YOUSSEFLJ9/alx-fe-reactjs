@@ -73,8 +73,8 @@ export default function AddRecipeForm ()
                 </div>
                 <button type="submit" className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">Submit Recipe</button>
             </form>
-            {errors && <p className="text-red-500 mt-4 text-center text-xl">{errors}</p>}
-            {validate && <p className=" text-green-500 mt-4 text-center text-xl">Recipe submitted successfully!</p>}
+            {errors && <p className="text-red-500 mt-4 text-center text-xl font-bold">{errors}</p>}
+            {validate && <p className=" text-green-500 mt-4 text-center text-xl font-bold">Recipe submitted successfully!</p>}
         </div>
     );
     
