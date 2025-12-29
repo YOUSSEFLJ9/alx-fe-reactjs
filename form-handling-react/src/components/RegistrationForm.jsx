@@ -9,6 +9,7 @@ export default function RegistrationForm()
     password: "",
     confirmPassword: ""
   });
+  //["value={username}", "value={email}", "value={password}"]
   const [errors, setErrors] = useState({});
 
   const handleChange = (e) =>
