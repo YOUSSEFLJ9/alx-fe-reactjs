@@ -2,6 +2,7 @@ import { useQueries } from "react-query";
 import axios from "axios";
 
 //"useQuery", "error", "fetchPosts"
+//cacheTime", "staleTime", "refetchOnWindowFocus", "keepPreviousData
 const fetchPosts = async (postId) => {
     const { data } = await axios.get(
         `https://jsonplaceholder.typicode.com/posts/${postId}`
