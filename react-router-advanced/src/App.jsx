@@ -1,5 +1,4 @@
-
-import {Route, Routes, Link } from 'react-router-dom'
+import {Route, Routes, Link, BrowserRouter } from 'react-router-dom'
 import './App.css'
 import Home from './components/Home';
 import Profile from './components/Profile';
@@ -9,7 +8,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 function App() {
 
   return (
-    <>
+    <BrowserRouter>
       <nav>
         <Link to="/">Home</Link> |{' '}
         <Link to="/profile">Profile</Link> |{' '}
@@ -29,7 +28,7 @@ function App() {
         <Route path="/blog/:id" element={<BlogPost />} />
         <Route path="/login" element={<Login />} />
       </Routes>
-    </>
+    </BrowserRouter>
   );
 }
 
