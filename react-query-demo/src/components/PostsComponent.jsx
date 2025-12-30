@@ -13,7 +13,7 @@ export default function PostsComponent()
         cacheTime: 5 * 60 * 1000, // 5 minutes
     });
     if (isLoading) return <div>Loading...</div>;
-    if (isError) return <div>Error fetching posts</div>;
+    if (isError) return <div>error fetching posts</div>;
     return (
         <div>
             <h2>Posts</h2>
