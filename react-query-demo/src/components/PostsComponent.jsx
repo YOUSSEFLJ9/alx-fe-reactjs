@@ -1,7 +1,8 @@
 import { useQueries } from "react-query";
 import axios from "axios";
 
-const fetchPost = async (postId) => {
+//"useQuery", "error", "fetchPosts"
+const fetchPosts = async (postId) => {
     const { data } = await axios.get(
         `https://jsonplaceholder.typicode.com/posts/${postId}`
     );
@@ -13,7 +14,7 @@ export const PostsComponent = ({ postIds }) => {
         postIds.map((postId) => {
         return {
             queryKey: ['post', postId],
-            queryFn: () => fetchPost(postId),
+            queryFn: () => fetchPosts(postId),
         };
         })
     );
