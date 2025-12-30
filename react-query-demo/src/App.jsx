@@ -3,7 +3,7 @@ import reactLogo from './assets/react.svg'
 import viteLogo from '/vite.svg'
 import './App.css'
 import { QueryClient, QueryClientProvider } from 'react-query'
-import { PostsComponent } from './components/PostsComponent'
+import PostsComponent from './components/PostsComponent'
 
 const queryClient = new QueryClient()
 
@@ -33,7 +33,7 @@ function App() {
         Click on the Vite and React logos to learn more
       </p>
 
-      <PostsComponent postIds={[1, 2, 3]} />
+      <PostsComponent/>
     </QueryClientProvider>
   )
 }

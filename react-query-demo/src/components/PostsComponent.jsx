@@ -1,41 +1,27 @@
-import { useQueries } from "react-query";
-import axios from "axios";
+import {useQuery} from 'react-query';
+import axios from 'axios';
 
-//"useQuery", "error", "fetchPosts"
-//cacheTime", "staleTime", "refetchOnWindowFocus", "keepPreviousData
-const fetchPosts = async (postId) => {
-    const { data } = await axios.get(
-        `https://jsonplaceholder.typicode.com/posts/${postId}`
-    );
-    return data;
-    };
-
-export const PostsComponent = ({ postIds }) => {
-    const queries = useQueries(
-        postIds.map((postId) => {
-        return {
-            queryKey: ['post', postId],
-            queryFn: () => fetchPosts(postId),
-        };
-        })
-    );
-
-    if (queries.some((query) => query.isLoading)) {
-        return <div>Loading...</div>;
-    }
-
-    if (queries.some((query) => query.isError)) {
-        return <div>Error fetching posts</div>;
-    }
-
+const fetchPosts = async () =>
+{
+  const res = await axios.get('https://jsonplaceholder.typicode.com/posts');
+  return res.data;
+};
+export default function PostsComponent()
+{
+    const {data, error, isLoading} = useQuery('posts', fetchPosts);
+    if (isLoading) return <div>Loading...</div>;
+    if (error) return <div>Error fetching posts</div>;
     return (
         <div>
-        {queries.map((query, index) => (
-            <div key={postIds[index]}>
-            <h3>{query.data.title}</h3>
-            <p>{query.data.body}</p>
-            </div>
-        ))}
+            <h2>Posts</h2>
+            <ul>
+                {data.map((post) => (
+                    <li key={post.id}>
+                        <h3>{post.title}</h3>
+                        <p>{post.body}</p>
+                    </li>
+                ))}
+            </ul>
         </div>
     );
 }
