@@ -23,6 +23,7 @@ export default function RegistrationForm()
 
   const handleSubmit = (e) =>
   {
+  
     //if (!username, if (!email)", if (!password)
     e.preventDefault();
     if (formData.password !== formData.confirmPassword)
