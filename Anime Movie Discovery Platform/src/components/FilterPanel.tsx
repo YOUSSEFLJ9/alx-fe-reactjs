@@ -1,7 +1,7 @@
 import { FilterOptions } from '../types';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { allGenres } from '../data/mockData';
+import { allGenres } from '../types/index';
 
 interface FilterPanelProps {
   filters: FilterOptions;

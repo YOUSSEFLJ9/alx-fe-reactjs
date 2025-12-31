@@ -110,3 +110,19 @@ export function convertMovieToMediaItem(movie: Movie): MediaItem {
     runtime: movie.runtime,
   };
 }
+
+export const allGenres = [
+  'Action',
+  'Adventure',
+  'Comedy',
+  'Crime',
+  'Drama',
+  'Fantasy',
+  'Horror',
+  'Mystery',
+  'Romance',
+  'Sci-Fi',
+  'Thriller',
+  'Animation',
+  'Documentary',
+];
