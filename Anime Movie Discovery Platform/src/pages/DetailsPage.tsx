@@ -5,10 +5,18 @@ import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { DetailLoader } from '../components/Loader';
 import { ErrorMessage } from '../components/ErrorMessage';
+import { TrailerSection } from '../components/TrailerSection';
 import { MediaItem, Anime, Movie, convertAnimeToMediaItem, convertMovieToMediaItem } from '../types';
 import { motion } from 'motion/react';
 import axios from 'axios';
 import { Anime_ENDPOINTS, Movie_ENDPOINTS } from '../api';
+
+// Helper function to extract YouTube video ID from various URL formats
+function extractYouTubeId(url: string): string | null {
+  const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?v=))([^#\&\?]*).*/;
+  const match = url.match(regExp);
+  return (match && match[7].length === 11) ? match[7] : null;
+}
 
 export function DetailsPage() {
   const { type, id } = useParams<{ type: string; id: string }>();
@@ -17,6 +25,7 @@ export function DetailsPage() {
   const [error, setError] = useState<string | null>(null);
   const [media, setMedia] = useState<MediaItem | null>(null);
   const [isFavorite, setIsFavorite] = useState(false);
+  const [trailerKey, setTrailerKey] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchDetails = async () => {
@@ -36,6 +45,20 @@ export function DetailsPage() {
           const response = await axios.get(`${Anime_ENDPOINTS.ANIME_DETAIL}/${id}`);
           const animeData: Anime = response.data.data;
           mediaItem = convertAnimeToMediaItem(animeData);
+
+          // Fetch anime videos/trailers
+          try {
+            const videosResponse = await axios.get(`${Anime_ENDPOINTS.ANIME_VIDEOS}/${id}/videos`);
+            if (videosResponse.data?.data?.promo && videosResponse.data.data.promo.length > 0) {
+              const trailerUrl = videosResponse.data.data.promo[0].trailer?.embed_url;
+              if (trailerUrl) {
+                const videoId = extractYouTubeId(trailerUrl);
+                setTrailerKey(videoId);
+              }
+            }
+          } catch (err) {
+            console.warn('Could not fetch anime trailer:', err);
+          }
         } else if (type === 'movie') {
           // Fetch movie details from TMDB API
           const options = {
@@ -50,6 +73,38 @@ export function DetailsPage() {
           const response = await axios.request(options);
           const movieData: Movie = response.data;
           mediaItem = convertMovieToMediaItem(movieData);
+
+          // Fetch movie videos/trailers
+          try {
+            const videosOptions = {
+              method: 'GET',
+              url: `${Movie_ENDPOINTS.MOVIE_VIDEOS}/${id}/videos`,
+              params: {
+                api_key: import.meta.env.VITE_TMDB_API_KEY,
+                language: 'en-US'
+              },
+              headers: { accept: 'application/json' }
+            };
+            const videosResponse = await axios.request(videosOptions);
+            
+            if (videosResponse.data?.results && Array.isArray(videosResponse.data.results)) {
+              // Find official trailer or teaser from YouTube
+              const trailer = videosResponse.data.results.find(
+                (video: any) =>
+                  video.site === 'YouTube' &&
+                  (video.type === 'Trailer' || video.type === 'Teaser') &&
+                  video.official === true
+              ) || videosResponse.data.results.find(
+                (video: any) => video.site === 'YouTube' && video.type === 'Trailer'
+              );
+              
+              if (trailer) {
+                setTrailerKey(trailer.key);
+              }
+            }
+          } catch (err) {
+            console.warn('Could not fetch movie trailer:', err);
+          }
         }
 
         if (!mediaItem) {
@@ -262,6 +317,11 @@ export function DetailsPage() {
                 )}
               </div>
             </div>
+
+            {/* Trailer Section */}
+            {trailerKey && (
+              <TrailerSection trailerKey={trailerKey} type={media.type} />
+            )}
           </motion.div>
         </div>
       </div>

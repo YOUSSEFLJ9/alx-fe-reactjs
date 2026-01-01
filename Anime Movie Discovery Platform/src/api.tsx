@@ -5,12 +5,14 @@ const Anime_ENDPOINTS = {
   TOP_ANIME: ANIME_API_URL + 'top/anime',
   SEARCH_ANIME: ANIME_API_URL + 'anime',
   ANIME_DETAIL: ANIME_API_URL + 'anime', // /{id} will be appended
+  ANIME_VIDEOS: ANIME_API_URL + 'anime', // /{id}/videos will be appended
 };
 
 const Movie_ENDPOINTS = {
   POPULAR_MOVIES: MOVIE_API_URL + 'movie/popular',
   SEARCH_MOVIES: MOVIE_API_URL + 'search/movie',
   MOVIE_DETAIL: MOVIE_API_URL + 'movie', // /{id} will be appended
+  MOVIE_VIDEOS: MOVIE_API_URL + 'movie', // /{id}/videos will be appended
 };
 
 export { Anime_ENDPOINTS, Movie_ENDPOINTS };
