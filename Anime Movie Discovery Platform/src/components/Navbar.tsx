@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Film, Home, Search, Heart } from 'lucide-react';
+import { ThemeToggle } from './ThemeToggle';
 
 export function Navbar() {
   const location = useLocation();
@@ -43,6 +44,7 @@ export function Navbar() {
                 </Link>
               );
             })}
+            <ThemeToggle />
           </div>
         </div>
       </div>
