@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Star, Calendar, Clock, Film, Tv, ArrowLeft, Heart } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { DetailLoader } from '../components/Loader';
@@ -11,7 +12,7 @@ import { motion } from 'motion/react';
 import axios from 'axios';
 import { Anime_ENDPOINTS, Movie_ENDPOINTS } from '../api';
 
-// Helper function to extract YouTube video ID from various URL formats
+// Helper function to extract YouTube video ID
 function extractYouTubeId(url: string): string | null {
   const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?v=))([^#\&\?]*).*/;
   const match = url.match(regExp);
@@ -21,118 +22,97 @@ function extractYouTubeId(url: string): string | null {
 export function DetailsPage() {
   const { type, id } = useParams<{ type: string; id: string }>();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [media, setMedia] = useState<MediaItem | null>(null);
   const [isFavorite, setIsFavorite] = useState(false);
-  const [trailerKey, setTrailerKey] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchDetails = async () => {
-      try {
-        setLoading(true);
-        
-        if (!type || !id) {
-          setError('Invalid media type or ID');
-          setMedia(null);
-          return;
+  const numericId = id ? parseInt(id, 10) : 0;
+  const isAnime = type === 'anime';
+
+  // Fetch media details - ANIME
+  const { data: animeData, isLoading: animeLoading, error: animeError } = useQuery({
+    queryKey: ['anime-details', numericId],
+    queryFn: async () => {
+      const response = await axios.get(`${Anime_ENDPOINTS.ANIME_DETAIL}/${numericId}`);
+      return convertAnimeToMediaItem(response.data.data);
+    },
+    enabled: isAnime && numericId > 0,
+    staleTime: 1000 * 60 * 60, // 1 hour
+  });
+
+  // Fetch media details - MOVIE
+  const { data: movieData, isLoading: movieLoading, error: movieError } = useQuery({
+    queryKey: ['movie-details', numericId],
+    queryFn: async () => {
+      const response = await axios.get(`${Movie_ENDPOINTS.MOVIE_DETAIL}/${numericId}`, {
+        params: {
+          api_key: import.meta.env.VITE_TMDB_API_KEY,
+          language: 'en-US'
         }
-        
-        let mediaItem: MediaItem | null = null;
+      });
+      return convertMovieToMediaItem(response.data);
+    },
+    enabled: !isAnime && numericId > 0,
+    staleTime: 1000 * 60 * 60, // 1 hour
+  });
 
-        if (type === 'anime') {
-          // Fetch anime details from Jikan API
-          const response = await axios.get(`${Anime_ENDPOINTS.ANIME_DETAIL}/${id}`);
-          const animeData: Anime = response.data.data;
-          mediaItem = convertAnimeToMediaItem(animeData);
-
-          // Fetch anime videos/trailers
-          try {
-            const videosResponse = await axios.get(`${Anime_ENDPOINTS.ANIME_VIDEOS}/${id}/videos`);
-            if (videosResponse.data?.data?.promo && videosResponse.data.data.promo.length > 0) {
-              const trailerUrl = videosResponse.data.data.promo[0].trailer?.embed_url;
-              if (trailerUrl) {
-                const videoId = extractYouTubeId(trailerUrl);
-                setTrailerKey(videoId);
-              }
-            }
-          } catch (err) {
-            console.warn('Could not fetch anime trailer:', err);
-          }
-        } else if (type === 'movie') {
-          // Fetch movie details from TMDB API
-          const options = {
-            method: 'GET',
-            url: `${Movie_ENDPOINTS.MOVIE_DETAIL}/${id}`,
-            params: {
-              api_key: import.meta.env.VITE_TMDB_API_KEY,
-              language: 'en-US'
-            },
-            headers: { accept: 'application/json' }
-          };
-          const response = await axios.request(options);
-          const movieData: Movie = response.data;
-          mediaItem = convertMovieToMediaItem(movieData);
-
-          // Fetch movie videos/trailers
-          try {
-            const videosOptions = {
-              method: 'GET',
-              url: `${Movie_ENDPOINTS.MOVIE_VIDEOS}/${id}/videos`,
-              params: {
-                api_key: import.meta.env.VITE_TMDB_API_KEY,
-                language: 'en-US'
-              },
-              headers: { accept: 'application/json' }
-            };
-            const videosResponse = await axios.request(videosOptions);
-            
-            if (videosResponse.data?.results && Array.isArray(videosResponse.data.results)) {
-              // Find official trailer or teaser from YouTube
-              const trailer = videosResponse.data.results.find(
-                (video: any) =>
-                  video.site === 'YouTube' &&
-                  (video.type === 'Trailer' || video.type === 'Teaser') &&
-                  video.official === true
-              ) || videosResponse.data.results.find(
-                (video: any) => video.site === 'YouTube' && video.type === 'Trailer'
-              );
-              
-              if (trailer) {
-                setTrailerKey(trailer.key);
-              }
-            }
-          } catch (err) {
-            console.warn('Could not fetch movie trailer:', err);
-          }
-        }
-
-        if (!mediaItem) {
-          setError('Content not found');
-          setMedia(null);
-        } else {
-          setMedia(mediaItem);
-          setError(null);
-
-          // Check if in favorites (from localStorage)
-          const favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
-          setIsFavorite(
-            favorites.some(
-              (fav: MediaItem) => fav.id === mediaItem.id && fav.type === mediaItem.type
-            )
-          );
-        }
-      } catch (err) {
-        console.error('Error fetching details:', err);
-        setError('Failed to load details');
-        setMedia(null);
-      } finally {
-        setLoading(false);
+  // Fetch anime trailer (different API structure)
+  const { data: animeTrailerKey } = useQuery({
+    queryKey: ['anime-trailer', numericId],
+    queryFn: async () => {
+      const response = await axios.get(`${Anime_ENDPOINTS.ANIME_VIDEOS}/${numericId}/videos`);
+      if (response.data?.data?.promo && response.data.data.promo.length > 0) {
+        const trailerUrl = response.data.data.promo[0].trailer?.embed_url;
+        if (trailerUrl) return extractYouTubeId(trailerUrl);
       }
-    };
+      return null;
+    },
+    enabled: isAnime && numericId > 0,
+    staleTime: 1000 * 60 * 60, // 1 hour
+  });
 
-    fetchDetails();
-  }, [type, id]);
+  // Fetch movie trailer (different API structure)
+  const { data: movieTrailerKey } = useQuery({
+    queryKey: ['movie-trailer', numericId],
+    queryFn: async () => {
+      const response = await axios.get(`${Movie_ENDPOINTS.MOVIE_VIDEOS}/${numericId}/videos`, {
+        params: {
+          api_key: import.meta.env.VITE_TMDB_API_KEY,
+          language: 'en-US'
+        }
+      });
+      if (response.data?.results && Array.isArray(response.data.results)) {
+        const trailer = response.data.results.find(
+          (video: any) =>
+            video.site === 'YouTube' &&
+            (video.type === 'Trailer' || video.type === 'Teaser') &&
+            video.official === true
+        ) || response.data.results.find(
+          (video: any) => video.site === 'YouTube' && video.type === 'Trailer'
+        );
+        return trailer?.key || null;
+      }
+      return null;
+    },
+    enabled: !isAnime && numericId > 0,
+    staleTime: 1000 * 60 * 60, // 1 hour
+  });
+
+  // Select appropriate data based on type
+  const media = isAnime ? animeData : movieData;
+  const loading = isAnime ? animeLoading : movieLoading;
+  const error = isAnime ? animeError : movieError;
+  const trailerKey = isAnime ? animeTrailerKey : movieTrailerKey;
+
+  // Check favorite status
+  useEffect(() => {
+    if (media) {
+      const favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
+      setIsFavorite(
+        favorites.some(
+          (fav: MediaItem) => fav.id === media.id && fav.type === media.type
+        )
+      );
+    }
+  }, [media]);
 
   const toggleFavorite = () => {
     if (!media) return;
@@ -160,7 +140,7 @@ export function DetailsPage() {
   if (error || !media) {
     return (
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <ErrorMessage message={error || 'Content not found'} />
+        <ErrorMessage message={error?.message || 'Content not found'} />
         <Button onClick={() => navigate(-1)} className="mt-4" variant="outline">
           <ArrowLeft className="h-4 w-4 mr-2" />
           Go Back

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { SearchBar } from '../components/SearchBar';
 import { FilterPanel } from '../components/FilterPanel';
 import { CardList } from '../components/CardList';
@@ -15,257 +16,142 @@ export function SearchPage() {
     rating: 'all',
     type: 'all',
   });
-  const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState<MediaItem[]>([]);
   const [animePage, setAnimePage] = useState(1);
   const [moviePage, setMoviePage] = useState(1);
-  const [hasMoreAnime, setHasMoreAnime] = useState(true);
-  const [hasMoreMovies, setHasMoreMovies] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [results, setResults] = useState<MediaItem[]>([]);
 
-  useEffect(() => {
-    const searchAndFilter = async () => {
-      setLoading(true);
-      setAnimePage(1);
-      setMoviePage(1);
-      setHasMoreAnime(true);
-      setHasMoreMovies(true);
+  // Fetch anime - either top or search based on query
+  const { data: animeData, isLoading: animeLoading } = useQuery({
+    queryKey: ['search-anime', searchQuery, animePage],
+    queryFn: async () => {
+      let animeUrl = Anime_ENDPOINTS.TOP_ANIME;
+      let animeParams: any = { limit: 25, page: animePage };
       
-      try {
-        let filtered: MediaItem[] = [];
-
-        // Fetch anime results
-        if (filters.type === 'all' || filters.type === 'anime') {
-          try {
-            let animeUrl = Anime_ENDPOINTS.TOP_ANIME;
-            let animeParams: any = { limit: 25, page: 1 };
-            
-            // If search query exists, use search endpoint
-            if (searchQuery.trim()) {
-              animeUrl = Anime_ENDPOINTS.SEARCH_ANIME;
-              animeParams = { query: searchQuery.trim(), limit: 25, page: 1 };
-            }
-            
-            const animeResponse = await axios.get(animeUrl, { params: animeParams });
-            
-            if (animeResponse.data && animeResponse.data.data && Array.isArray(animeResponse.data.data)) {
-              const animeItems: MediaItem[] = animeResponse.data.data
-                .map((anime: Anime) => {
-                  try {
-                    return convertAnimeToMediaItem(anime);
-                  } catch (e) {
-                    console.warn('Failed to convert anime:', anime, e);
-                    return null;
-                  }
-                })
-                .filter((item: MediaItem | null): item is MediaItem => item !== null);
-              
-              filtered = [...filtered, ...animeItems];
-              setHasMoreAnime(animeResponse.data.pagination?.has_next_page || false);
-            } else {
-              setHasMoreAnime(false);
-            }
-          } catch (err) {
-            console.error('Error fetching anime:', err);
-            setHasMoreAnime(false);
-          }
-        }
-
-        // Fetch movie results
-        if (filters.type === 'all' || filters.type === 'movie') {
-          try {
-            let movieUrl = Movie_ENDPOINTS.POPULAR_MOVIES;
-            let movieParams: any = {
-              api_key: import.meta.env.VITE_TMDB_API_KEY,
-              language: 'en-US',
-              page: 1
-            };
-            
-            // If search query exists, use search endpoint
-            if (searchQuery.trim()) {
-              movieUrl = Movie_ENDPOINTS.SEARCH_MOVIES;
-              movieParams.query = searchQuery.trim();
-            }
-            
-            const movieResponse = await axios.get(movieUrl, { params: movieParams });
-            
-            if (movieResponse.data && movieResponse.data.results && Array.isArray(movieResponse.data.results)) {
-              const movieItems: MediaItem[] = movieResponse.data.results
-                .filter((movie: Movie) => movie.poster_path) // Filter out movies without poster
-                .map((movie: Movie) => {
-                  try {
-                    return convertMovieToMediaItem(movie);
-                  } catch (e) {
-                    console.warn('Failed to convert movie:', movie, e);
-                    return null;
-                  }
-                })
-                .filter((item: MediaItem | null): item is MediaItem => item !== null);
-              
-              filtered = [...filtered, ...movieItems];
-              setHasMoreMovies(movieResponse.data.page < movieResponse.data.total_pages);
-            } else {
-              setHasMoreMovies(false);
-            }
-          } catch (err) {
-            console.error('Error fetching movies:', err);
-            setHasMoreMovies(false);
-          }
-        }
-
-        // Apply client-side filters
-        
-        // Filter by genre
-        if (filters.genre !== 'all') {
-          filtered = filtered.filter((item) =>
-            item.genres.some(genre => genre.toLowerCase() === filters.genre.toLowerCase())
-          );
-        }
-
-        // Filter by rating
-        if (filters.rating !== 'all') {
-          const minRating = parseFloat(filters.rating);
-          filtered = filtered.filter((item) => item.rating >= minRating);
-        }
-
-        setResults(filtered);
-      } catch (err) {
-        console.error('Error in search:', err);
-        setResults([]);
-      } finally {
-        setLoading(false);
+      if (searchQuery.trim()) {
+        animeUrl = Anime_ENDPOINTS.SEARCH_ANIME;
+        animeParams = { query: searchQuery.trim(), limit: 25, page: animePage };
       }
-    };
+      
+      const response = await axios.get(animeUrl, { params: animeParams });
+      if (response.data?.data && Array.isArray(response.data.data)) {
+        return {
+          items: response.data.data
+            .map((anime: Anime) => {
+              try {
+                return convertAnimeToMediaItem(anime);
+              } catch (e) {
+                console.warn('Failed to convert anime:', e);
+                return null;
+              }
+            })
+            .filter((item: MediaItem | null): item is MediaItem => item !== null),
+          hasMore: response.data.pagination?.has_next_page || false
+        };
+      }
+      return { items: [], hasMore: false };
+    },
+    staleTime: 1000 * 60 * 10, // 10 minutes
+    enabled: filters.type === 'all' || filters.type === 'anime',
+  });
 
-    searchAndFilter();
-  }, [searchQuery, filters]);
+  // Fetch movies - either popular or search based on query
+  const { data: movieData, isLoading: movieLoading } = useQuery({
+    queryKey: ['search-movies', searchQuery, moviePage],
+    queryFn: async () => {
+      let movieUrl = Movie_ENDPOINTS.POPULAR_MOVIES;
+      let movieParams: any = {
+        api_key: import.meta.env.VITE_TMDB_API_KEY,
+        language: 'en-US',
+        page: moviePage
+      };
+      
+      if (searchQuery.trim()) {
+        movieUrl = Movie_ENDPOINTS.SEARCH_MOVIES;
+        movieParams.query = searchQuery.trim();
+      }
+      
+      const response = await axios.get(movieUrl, { params: movieParams });
+      if (response.data?.results && Array.isArray(response.data.results)) {
+        return {
+          items: response.data.results
+            .filter((movie: Movie) => movie.poster_path)
+            .map((movie: Movie) => {
+              try {
+                return convertMovieToMediaItem(movie);
+              } catch (e) {
+                console.warn('Failed to convert movie:', e);
+                return null;
+              }
+            })
+            .filter((item: MediaItem | null): item is MediaItem => item !== null),
+          hasMore: response.data.page < response.data.total_pages,
+          totalPages: response.data.total_pages
+        };
+      }
+      return { items: [], hasMore: false, totalPages: 1 };
+    },
+    staleTime: 1000 * 60 * 10, // 10 minutes
+    enabled: filters.type === 'all' || filters.type === 'movie',
+  });
 
-  // Load more content when scrolling
+  const loading = animeLoading || movieLoading;
+
+  // Combine and apply filters to results
+  useEffect(() => {
+    let combined: MediaItem[] = [];
+    
+    if (animeData?.items) combined = [...combined, ...animeData.items];
+    if (movieData?.items) combined = [...combined, ...movieData.items];
+
+    // Apply client-side filters
+    let filtered = combined;
+    
+    if (filters.genre !== 'all') {
+      filtered = filtered.filter((item) =>
+        item.genres.some(genre => genre.toLowerCase() === filters.genre.toLowerCase())
+      );
+    }
+
+    if (filters.rating !== 'all') {
+      const minRating = parseFloat(filters.rating);
+      filtered = filtered.filter((item) => item.rating >= minRating);
+    }
+
+    setResults(filtered);
+  }, [animeData, movieData, filters]);
+
+  const hasMoreAnime = animeData?.hasMore || false;
+  const hasMoreMovies = movieData?.hasMore || false;
+
+  const handleLoadMore = () => {
+    setIsLoadingMore(true);
+    if (hasMoreAnime && (filters.type === 'all' || filters.type === 'anime')) {
+      setAnimePage(prev => prev + 1);
+    }
+    if (hasMoreMovies && (filters.type === 'all' || filters.type === 'movie')) {
+      setMoviePage(prev => prev + 1);
+    }
+    setIsLoadingMore(false);
+  };
+
+  // Scroll listener for infinite loading
   useEffect(() => {
     const handleScroll = () => {
       const scrollTop = document.documentElement.scrollTop;
       const scrollHeight = document.documentElement.scrollHeight;
       const clientHeight = document.documentElement.clientHeight;
 
-      // Check if user is near bottom (within 200px)
-      if (scrollTop + clientHeight >= scrollHeight - 200 && !isLoadingMore && !loading) {
-        const shouldLoadAnime = (filters.type === 'all' || filters.type === 'anime') && hasMoreAnime;
-        const shouldLoadMovies = (filters.type === 'all' || filters.type === 'movie') && hasMoreMovies;
-        
-        if (shouldLoadAnime || shouldLoadMovies) {
-          loadMoreContent();
+      if (scrollTop + clientHeight >= scrollHeight - 200 && !loading) {
+        if (hasMoreAnime || hasMoreMovies) {
+          handleLoadMore();
         }
       }
     };
 
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [isLoadingMore, loading, hasMoreAnime, hasMoreMovies, filters.type, animePage, moviePage, searchQuery, filters.genre, filters.rating]);
-
-  const loadMoreContent = async () => {
-    setIsLoadingMore(true);
-    
-    try {
-      let newItems: MediaItem[] = [];
-
-      // Load more anime
-      if ((filters.type === 'all' || filters.type === 'anime') && hasMoreAnime) {
-        try {
-          const nextAnimePage = animePage + 1;
-          let animeUrl = Anime_ENDPOINTS.TOP_ANIME;
-          let animeParams: any = { limit: 25, page: nextAnimePage };
-          
-          if (searchQuery.trim()) {
-            animeUrl = Anime_ENDPOINTS.SEARCH_ANIME;
-            animeParams = { query: searchQuery.trim(), limit: 25, page: nextAnimePage };
-          }
-          
-          const animeResponse = await axios.get(animeUrl, { params: animeParams });
-          
-          if (animeResponse.data && animeResponse.data.data && Array.isArray(animeResponse.data.data)) {
-            const animeItems: MediaItem[] = animeResponse.data.data
-              .map((anime: Anime) => {
-                try {
-                  return convertAnimeToMediaItem(anime);
-                } catch (e) {
-                  console.warn('Failed to convert anime:', anime, e);
-                  return null;
-                }
-              })
-              .filter((item: MediaItem | null): item is MediaItem => item !== null);
-            
-            newItems = [...newItems, ...animeItems];
-            setAnimePage(nextAnimePage);
-            setHasMoreAnime(animeResponse.data.pagination?.has_next_page || false);
-          }
-        } catch (err) {
-          console.error('Error loading more anime:', err);
-          setHasMoreAnime(false);
-        }
-      }
-
-      // Load more movies
-      if ((filters.type === 'all' || filters.type === 'movie') && hasMoreMovies) {
-        try {
-          const nextMoviePage = moviePage + 1;
-          let movieUrl = Movie_ENDPOINTS.POPULAR_MOVIES;
-          let movieParams: any = {
-            api_key: import.meta.env.VITE_TMDB_API_KEY,
-            language: 'en-US',
-            page: nextMoviePage
-          };
-          
-          if (searchQuery.trim()) {
-            movieUrl = Movie_ENDPOINTS.SEARCH_MOVIES;
-            movieParams.query = searchQuery.trim();
-          }
-          
-          const movieResponse = await axios.get(movieUrl, { params: movieParams });
-          
-          if (movieResponse.data && movieResponse.data.results && Array.isArray(movieResponse.data.results)) {
-            const movieItems: MediaItem[] = movieResponse.data.results
-              .filter((movie: Movie) => movie.poster_path) // Filter out movies without poster
-              .map((movie: Movie) => {
-                try {
-                  return convertMovieToMediaItem(movie);
-                } catch (e) {
-                  console.warn('Failed to convert movie:', movie, e);
-                  return null;
-                }
-              })
-              .filter((item: MediaItem | null): item is MediaItem => item !== null);
-            
-            newItems = [...newItems, ...movieItems];
-            setMoviePage(nextMoviePage);
-            setHasMoreMovies(movieResponse.data.page < movieResponse.data.total_pages);
-          }
-        } catch (err) {
-          console.error('Error loading more movies:', err);
-          setHasMoreMovies(false);
-        }
-      }
-
-      // Apply client-side filters to new items
-      let filteredNew = newItems;
-      
-      if (filters.genre !== 'all') {
-        filteredNew = filteredNew.filter((item) =>
-          item.genres.some(genre => genre.toLowerCase() === filters.genre.toLowerCase())
-        );
-      }
-
-      if (filters.rating !== 'all') {
-        const minRating = parseFloat(filters.rating);
-        filteredNew = filteredNew.filter((item) => item.rating >= minRating);
-      }
-
-      setResults((prev: MediaItem[]) => [...prev, ...filteredNew]);
-    } catch (err) {
-      console.error('Error loading more content:', err);
-    } finally {
-      setIsLoadingMore(false);
-    }
-  };
+  }, [hasMoreAnime, hasMoreMovies, loading]);
 
   return (
     <div className="min-h-screen">

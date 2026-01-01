@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { CardList } from '../components/CardList';
 import { Loader } from '../components/Loader';
 import { ErrorMessage } from '../components/ErrorMessage';
@@ -9,40 +10,36 @@ import axios from 'axios';
 import { Anime_ENDPOINTS, Movie_ENDPOINTS } from '../api';
 
 export function HomePage() {
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [anime, setAnime] = useState<MediaItem[]>([]);
-  const [movies, setMovies] = useState<MediaItem[]>([]);
+  // Fetch top anime with caching
+  const { data: anime = [], isLoading: animeLoading, error: animeError } = useQuery({
+    queryKey: ['topAnime'],
+    queryFn: async () => {
+      const response = await axios.get(Anime_ENDPOINTS.TOP_ANIME, {
+        params: { limit: 10, page: 1 }
+      });
+      return response.data.data.slice(0, 10).map((animeData: Anime) => convertAnimeToMediaItem(animeData));
+    },
+    staleTime: 1000 * 60 * 30, // 30 minutes
+  });
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const response_naime = await axios.get(Anime_ENDPOINTS.TOP_ANIME);
-        const options = {method: 'GET', url: Movie_ENDPOINTS.POPULAR_MOVIES, params: {language: 'en-US', page: '1',  api_key: import.meta.env.VITE_TMDB_API_KEY,},
-        headers: { accept: 'application/json', }
-};
-// show only 10 items
-      const mediaItems_anime = response_naime.data.data.slice(0, 10).map((animeData: Anime) => convertAnimeToMediaItem(animeData));
-      setAnime(mediaItems_anime);
-      let response_movies;
-      axios.request(options) .then((res) => {
-            response_movies = res.data.results;
-            const mediaItems_movies = response_movies.slice(0, 10).map((movieData: Movie) => convertMovieToMediaItem(movieData));
-            setMovies(mediaItems_movies);
+  // Fetch popular movies with caching
+  const { data: movies = [], isLoading: moviesLoading, error: moviesError } = useQuery({
+    queryKey: ['popularMovies'],
+    queryFn: async () => {
+      const response = await axios.get(Movie_ENDPOINTS.POPULAR_MOVIES, {
+        params: {
+          api_key: import.meta.env.VITE_TMDB_API_KEY,
+          language: 'en-US',
+          page: 1
+        }
+      });
+      return response.data.results.slice(0, 10).map((movieData: Movie) => convertMovieToMediaItem(movieData));
+    },
+    staleTime: 1000 * 60 * 30, // 30 minutes
+  });
 
-      }).catch(err => console.error(err));
-
-        setError(null);
-      } catch (err) {
-        setError('Failed to load content. Please try again later.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
+  const loading = animeLoading || moviesLoading;
+  const error = animeError?.message || moviesError?.message || null;
 
   return (
     <div className="min-h-screen">
