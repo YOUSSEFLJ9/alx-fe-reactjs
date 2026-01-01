@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Star, Calendar, Clock, Film, Tv, ArrowLeft, Heart, BookOpen } from 'lucide-react';
+import { Star, Calendar, Clock, Film, Tv, ArrowLeft, Heart, BookOpen, Users } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -153,11 +153,80 @@ export function DetailsPage() {
     staleTime: 1000 * 60 * 60, // 1 hour
   });
 
+  // Fetch anime characters
+  const { data: animeCharacters } = useQuery({
+    queryKey: ['anime-characters', numericId],
+    queryFn: async () => {
+      const response = await axios.get(`${Anime_ENDPOINTS.ANIME_CHARACTERS}/${numericId}/characters`);
+      return response.data.data.slice(0, 12).map((char: any) => ({
+        id: char.character.mal_id,
+        name: char.character.name,
+        imageUrl: char.character.images.jpg.image_url,
+        role: char.role
+      }));
+    },
+    enabled: isAnime && numericId > 0,
+    staleTime: 1000 * 60 * 60, // 1 hour
+  });
+
+  // Fetch manga characters
+  const { data: mangaCharacters } = useQuery({
+    queryKey: ['manga-characters', numericId],
+    queryFn: async () => {
+      const response = await axios.get(`${Anime_ENDPOINTS.MANGA_CHARACTERS}/${numericId}/characters`);
+      return response.data.data.slice(0, 12).map((char: any) => ({
+        id: char.character.mal_id,
+        name: char.character.name,
+        imageUrl: char.character.images.jpg.image_url,
+        role: char.role
+      }));
+    },
+    enabled: isManga && numericId > 0,
+    staleTime: 1000 * 60 * 60, // 1 hour
+  });
+
+  // Fetch movie credits
+  const { data: movieCharacters } = useQuery({
+    queryKey: ['movie-credits', numericId],
+    queryFn: async () => {
+      const response = await axios.get(`${Movie_ENDPOINTS.MOVIE_CREDITS}/${numericId}/credits`, {
+        params: { api_key: import.meta.env.VITE_TMDB_API_KEY }
+      });
+      return response.data.cast.slice(0, 12).map((char: any) => ({
+        id: char.id,
+        name: char.name,
+        imageUrl: char.profile_path ? `https://image.tmdb.org/t/p/w185${char.profile_path}` : 'https://via.placeholder.com/185x278?text=No+Image',
+        role: char.character
+      }));
+    },
+    enabled: isMovie && numericId > 0,
+    staleTime: 1000 * 60 * 60, // 1 hour
+  });
+
+  // Fetch TV credits
+  const { data: tvCharacters } = useQuery({
+    queryKey: ['tv-credits', numericId],
+    queryFn: async () => {
+      const response = await axios.get(`${Movie_ENDPOINTS.TV_CREDITS}/${numericId}/credits`, {
+        params: { api_key: import.meta.env.VITE_TMDB_API_KEY }
+      });
+      return response.data.cast.slice(0, 12).map((char: any) => ({
+        id: char.id,
+        name: char.name,
+        imageUrl: char.profile_path ? `https://image.tmdb.org/t/p/w185${char.profile_path}` : 'https://via.placeholder.com/185x278?text=No+Image',
+        role: char.character
+      }));
+    },
+    enabled: isTV && numericId > 0,
+    staleTime: 1000 * 60 * 60, // 1 hour
+  });
+
   // Select appropriate data based on type
   const media = isAnime ? animeData : isMovie ? movieData : isManga ? mangaData : tvData;
   const loading = animeLoading || movieLoading || mangaLoading || tvLoading;
   const error = animeError || movieError || mangaError || tvError;
   const trailerKey = isAnime ? animeTrailerKey : isMovie ? movieTrailerKey : isTV ? tvTrailerKey : null;
+  const characters = isAnime ? animeCharacters : isManga ? mangaCharacters : isMovie ? movieCharacters : tvCharacters;
 
   // Check favorite status
   useEffect(() => {
@@ -370,6 +439,18 @@ export function DetailsPage() {
                     <p>{media.episodes}</p>
                   </div>
                 )}
+                {media.chapters && (
+                  <div>
+                    <p className="text-muted-foreground mb-1">Chapters</p>
+                    <p>{media.chapters}</p>
+                  </div>
+                )}
+                {media.volumes && (
+                  <div>
+                    <p className="text-muted-foreground mb-1">Volumes</p>
+                    <p>{media.volumes}</p>
+                  </div>
+                )}
                 {media.runtime && (
                   <div>
                     <p className="text-muted-foreground mb-1">Runtime</p>
@@ -382,6 +463,45 @@ export function DetailsPage() {
             {/* Trailer Section */}
             {trailerKey && (
               <TrailerSection trailerKey={trailerKey} type={media.type} />
+            )}
+
+            {/* Characters Section */}
+            {characters && characters.length > 0 && (
+              <div className="space-y-4 pt-8 border-t border-border">
+                <div className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  <h3>Characters & Cast</h3>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                  {characters.map((char: any) => (
+                    <motion.div
+                      key={char.id}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      whileHover={{ y: -4 }}
+                      className="bg-card border border-border rounded-lg overflow-hidden"
+                    >
+                      <div className="aspect-square overflow-hidden">
+                        <img
+                          src={char.imageUrl}
+                          alt={char.name}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div className="p-2 text-center">
+                        <p className="text-sm font-medium line-clamp-1" title={char.name}>
+                          {char.name}
+                        </p>
+                        {char.role && (
+                          <p className="text-xs text-muted-foreground line-clamp-1" title={char.role}>
+                            {char.role}
+                          </p>
+                        )}
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
             )}
           </motion.div>
         </div>

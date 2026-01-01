@@ -90,6 +90,13 @@ export interface FilterOptions {
   sortOrder: 'asc' | 'desc';
 }
 
+export interface Character {
+  id: number;
+  name: string;
+  imageUrl: string;
+  role?: string;
+}
+
 
 // here we define logic to convert Anime and Movie to MediaItem
 export function convertAnimeToMediaItem(anime: Anime): MediaItem {
