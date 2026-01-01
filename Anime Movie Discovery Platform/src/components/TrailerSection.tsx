@@ -2,7 +2,7 @@ import { Play } from 'lucide-react';
 
 interface TrailerSectionProps {
   trailerKey: string | null;
-  type: 'anime' | 'movie';
+  type: 'anime' | 'movie' | 'manga' | 'tv';
 }
 
 export function TrailerSection({ trailerKey, type }: TrailerSectionProps) {

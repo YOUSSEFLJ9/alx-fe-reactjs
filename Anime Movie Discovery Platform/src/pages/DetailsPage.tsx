@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Star, Calendar, Clock, Film, Tv, ArrowLeft, Heart } from 'lucide-react';
+import { Star, Calendar, Clock, Film, Tv, ArrowLeft, Heart, BookOpen } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { DetailLoader } from '../components/Loader';
 import { ErrorMessage } from '../components/ErrorMessage';
 import { TrailerSection } from '../components/TrailerSection';
-import { MediaItem, Anime, Movie, convertAnimeToMediaItem, convertMovieToMediaItem } from '../types';
+import { MediaItem, Anime, Movie, Manga, TV, convertAnimeToMediaItem, convertMovieToMediaItem, convertMangaToMediaItem, convertTVToMediaItem } from '../types';
 import { motion } from 'motion/react';
 import axios from 'axios';
 import { Anime_ENDPOINTS, Movie_ENDPOINTS } from '../api';
@@ -26,6 +26,9 @@ export function DetailsPage() {
 
   const numericId = id ? parseInt(id, 10) : 0;
   const isAnime = type === 'anime';
+  const isMovie = type === 'movie';
+  const isManga = type === 'manga';
+  const isTV = type === 'tv';
 
   // Fetch media details - ANIME
   const { data: animeData, isLoading: animeLoading, error: animeError } = useQuery({
@@ -50,7 +53,34 @@ export function DetailsPage() {
       });
       return convertMovieToMediaItem(response.data);
     },
-    enabled: !isAnime && numericId > 0,
+    enabled: isMovie && numericId > 0,
+    staleTime: 1000 * 60 * 60, // 1 hour
+  });
+
+  // Fetch media details - MANGA
+  const { data: mangaData, isLoading: mangaLoading, error: mangaError } = useQuery({
+    queryKey: ['manga-details', numericId],
+    queryFn: async () => {
+      const response = await axios.get(`${Anime_ENDPOINTS.MANGA_DETAIL}/${numericId}`);
+      return convertMangaToMediaItem(response.data.data);
+    },
+    enabled: isManga && numericId > 0,
+    staleTime: 1000 * 60 * 60, // 1 hour
+  });
+
+  // Fetch media details - TV
+  const { data: tvData, isLoading: tvLoading, error: tvError } = useQuery({
+    queryKey: ['tv-details', numericId],
+    queryFn: async () => {
+      const response = await axios.get(`${Movie_ENDPOINTS.TV_DETAIL}/${numericId}`, {
+        params: {
+          api_key: import.meta.env.VITE_TMDB_API_KEY,
+          language: 'en-US'
+        }
+      });
+      return convertTVToMediaItem(response.data);
+    },
+    enabled: isTV && numericId > 0,
     staleTime: 1000 * 60 * 60, // 1 hour
   });
 
@@ -92,15 +122,42 @@ export function DetailsPage() {
       }
       return null;
     },
-    enabled: !isAnime && numericId > 0,
+    enabled: isMovie && numericId > 0,
+    staleTime: 1000 * 60 * 60, // 1 hour
+  });
+
+  // Fetch TV trailer
+  const { data: tvTrailerKey } = useQuery({
+    queryKey: ['tv-trailer', numericId],
+    queryFn: async () => {
+      const response = await axios.get(`${Movie_ENDPOINTS.TV_VIDEOS}/${numericId}/videos`, {
+        params: {
+          api_key: import.meta.env.VITE_TMDB_API_KEY,
+          language: 'en-US'
+        }
+      });
+      if (response.data?.results && Array.isArray(response.data.results)) {
+        const trailer = response.data.results.find(
+          (video: any) =>
+            video.site === 'YouTube' &&
+            (video.type === 'Trailer' || video.type === 'Teaser') &&
+            video.official === true
+        ) || response.data.results.find(
+          (video: any) => video.site === 'YouTube' && video.type === 'Trailer'
+        );
+        return trailer?.key || null;
+      }
+      return null;
+    },
+    enabled: isTV && numericId > 0,
     staleTime: 1000 * 60 * 60, // 1 hour
   });
 
   // Select appropriate data based on type
-  const media = isAnime ? animeData : movieData;
-  const loading = isAnime ? animeLoading : movieLoading;
-  const error = isAnime ? animeError : movieError;
-  const trailerKey = isAnime ? animeTrailerKey : movieTrailerKey;
+  const media = isAnime ? animeData : isMovie ? movieData : isManga ? mangaData : tvData;
+  const loading = animeLoading || movieLoading || mangaLoading || tvLoading;
+  const error = animeError || movieError || mangaError || tvError;
+  const trailerKey = isAnime ? animeTrailerKey : isMovie ? movieTrailerKey : isTV ? tvTrailerKey : null;
 
   // Check favorite status
   useEffect(() => {
@@ -221,6 +278,30 @@ export function DetailsPage() {
               )}
 
               {media.type === 'anime' && media.episodes && (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Tv className="h-4 w-4" />
+                  <span>{media.episodes} Episodes</span>
+                </div>
+              )}
+
+              {media.type === 'manga' && (
+                <>
+                  {media.chapters && (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <BookOpen className="h-4 w-4" />
+                      <span>{media.chapters} Chapters</span>
+                    </div>
+                  )}
+                  {media.volumes && (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <BookOpen className="h-4 w-4" />
+                      <span>{media.volumes} Volumes</span>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {media.type === 'tv' && media.episodes && (
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Tv className="h-4 w-4" />
                   <span>{media.episodes} Episodes</span>

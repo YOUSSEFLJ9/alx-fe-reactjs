@@ -5,7 +5,7 @@ import { FilterPanel } from '../components/FilterPanel';
 import { CardList } from '../components/CardList';
 import { Loader } from '../components/Loader';
 import { EmptyState } from '../components/EmptyState';
-import { MediaItem, FilterOptions, Anime, Movie, convertAnimeToMediaItem, convertMovieToMediaItem } from '../types';
+import { MediaItem, FilterOptions, Anime, Movie, Manga, TV, convertAnimeToMediaItem, convertMovieToMediaItem, convertMangaToMediaItem, convertTVToMediaItem } from '../types';
 import axios from 'axios';
 import { Anime_ENDPOINTS, Movie_ENDPOINTS } from '../api';
 
@@ -22,8 +22,12 @@ export function SearchPage() {
   });
   const [animePage, setAnimePage] = useState(1);
   const [moviePage, setMoviePage] = useState(1);
+  const [mangaPage, setMangaPage] = useState(1);
+  const [tvPage, setTvPage] = useState(1);
   const [allAnimeItems, setAllAnimeItems] = useState<MediaItem[]>([]);
   const [allMovieItems, setAllMovieItems] = useState<MediaItem[]>([]);
+  const [allMangaItems, setAllMangaItems] = useState<MediaItem[]>([]);
+  const [allTVItems, setAllTVItems] = useState<MediaItem[]>([]);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   // Fetch anime - either top or search based on query
@@ -35,7 +39,7 @@ export function SearchPage() {
       
       if (searchQuery.trim()) {
         animeUrl = Anime_ENDPOINTS.SEARCH_ANIME;
-        animeParams = { query: searchQuery.trim(), limit: 25, page: animePage };
+        animeParams = { q: searchQuery.trim(), limit: 25, page: animePage };
       }
       
       const response = await axios.get(animeUrl, { params: animeParams });
@@ -100,7 +104,81 @@ export function SearchPage() {
     enabled: filters.type === 'all' || filters.type === 'movie',
   });
 
-  const loading = animeLoading || movieLoading;
+  // Fetch manga - either top or search based on query
+  const { data: mangaData, isLoading: mangaLoading } = useQuery({
+    queryKey: ['search-manga', searchQuery, mangaPage],
+    queryFn: async () => {
+      let mangaUrl = Anime_ENDPOINTS.TOP_MANGA;
+      let mangaParams: any = { limit: 25, page: mangaPage };
+      
+      if (searchQuery.trim()) {
+        mangaUrl = Anime_ENDPOINTS.SEARCH_MANGA;
+        mangaParams = { q: searchQuery.trim(), limit: 25, page: mangaPage };
+      }
+      
+      const response = await axios.get(mangaUrl, { params: mangaParams });
+      if (response.data?.data && Array.isArray(response.data.data)) {
+        return {
+          items: response.data.data
+            .map((manga: Manga) => {
+              try {
+                return convertMangaToMediaItem(manga);
+              } catch (e) {
+                console.warn('Failed to convert manga:', e);
+                return null;
+              }
+            })
+            .filter((item: MediaItem | null): item is MediaItem => item !== null),
+          hasMore: response.data.pagination?.has_next_page || false
+        };
+      }
+      return { items: [], hasMore: false };
+    },
+    staleTime: 1000 * 60 * 10, // 10 minutes
+    enabled: filters.type === 'all' || filters.type === 'manga',
+  });
+
+  // Fetch TV series - either popular or search based on query
+  const { data: tvData, isLoading: tvLoading } = useQuery({
+    queryKey: ['search-tv', searchQuery, tvPage],
+    queryFn: async () => {
+      let tvUrl = Movie_ENDPOINTS.POPULAR_TV;
+      let tvParams: any = {
+        api_key: import.meta.env.VITE_TMDB_API_KEY,
+        language: 'en-US',
+        page: tvPage
+      };
+      
+      if (searchQuery.trim()) {
+        tvUrl = Movie_ENDPOINTS.SEARCH_TV;
+        tvParams.query = searchQuery.trim();
+      }
+      
+      const response = await axios.get(tvUrl, { params: tvParams });
+      if (response.data?.results && Array.isArray(response.data.results)) {
+        return {
+          items: response.data.results
+            .filter((tv: TV) => tv.poster_path)
+            .map((tv: TV) => {
+              try {
+                return convertTVToMediaItem(tv);
+              } catch (e) {
+                console.warn('Failed to convert TV:', e);
+                return null;
+              }
+            })
+            .filter((item: MediaItem | null): item is MediaItem => item !== null),
+          hasMore: response.data.page < response.data.total_pages,
+          totalPages: response.data.total_pages
+        };
+      }
+      return { items: [], hasMore: false, totalPages: 1 };
+    },
+    staleTime: 1000 * 60 * 10, // 10 minutes
+    enabled: filters.type === 'all' || filters.type === 'tv',
+  });
+
+  const loading = animeLoading || movieLoading || mangaLoading || tvLoading;
 
   // Accumulate anime items for infinite scroll
   useEffect(() => {
@@ -130,12 +208,40 @@ export function SearchPage() {
     }
   }, [movieData, moviePage]);
 
+  // Accumulate manga items for infinite scroll
+  useEffect(() => {
+    if (mangaData?.items) {
+      setAllMangaItems(prev => {
+        if (mangaPage === 1) return mangaData.items;
+        const existingIds = new Set(prev.map(item => item.id));
+        const newItems = mangaData.items.filter(item => !existingIds.has(item.id));
+        return [...prev, ...newItems];
+      });
+    }
+  }, [mangaData, mangaPage]);
+
+  // Accumulate TV items for infinite scroll
+  useEffect(() => {
+    if (tvData?.items) {
+      setAllTVItems(prev => {
+        if (tvPage === 1) return tvData.items;
+        const existingIds = new Set(prev.map(item => item.id));
+        const newItems = tvData.items.filter(item => !existingIds.has(item.id));
+        return [...prev, ...newItems];
+      });
+    }
+  }, [tvData, tvPage]);
+
   // Reset pages when search query or filter type changes
   useEffect(() => {
     setAnimePage(1);
     setMoviePage(1);
+    setMangaPage(1);
+    setTvPage(1);
     setAllAnimeItems([]);
     setAllMovieItems([]);
+    setAllMangaItems([]);
+    setAllTVItems([]);
   }, [searchQuery, filters.type]);
 
   // Helper function to apply all filters and sorting
@@ -192,10 +298,14 @@ export function SearchPage() {
   const filteredResults = applyFiltersAndSort([
     ...(filters.type === 'all' || filters.type === 'anime' ? allAnimeItems : []),
     ...(filters.type === 'all' || filters.type === 'movie' ? allMovieItems : []),
+    ...(filters.type === 'all' || filters.type === 'manga' ? allMangaItems : []),
+    ...(filters.type === 'all' || filters.type === 'tv' ? allTVItems : []),
   ]);
 
   const hasMoreAnime = animeData?.hasMore || false;
   const hasMoreMovies = movieData?.hasMore || false;
+  const hasMoreManga = mangaData?.hasMore || false;
+  const hasMoreTV = tvData?.hasMore || false;
 
   // Handle loading more content
   useEffect(() => {
@@ -208,17 +318,17 @@ export function SearchPage() {
       if (scrollTop + clientHeight >= scrollHeight - 200 && !loading && !isLoadingMore) {
         const shouldLoadAnime = (filters.type === 'all' || filters.type === 'anime') && hasMoreAnime;
         const shouldLoadMovies = (filters.type === 'all' || filters.type === 'movie') && hasMoreMovies;
+        const shouldLoadManga = (filters.type === 'all' || filters.type === 'manga') && hasMoreManga;
+        const shouldLoadTV = (filters.type === 'all' || filters.type === 'tv') && hasMoreTV;
         
-        if (shouldLoadAnime || shouldLoadMovies) {
+        if (shouldLoadAnime || shouldLoadMovies || shouldLoadManga || shouldLoadTV) {
           setIsLoadingMore(true);
           
           // Load next page
-          if (shouldLoadAnime) {
-            setAnimePage(prev => prev + 1);
-          }
-          if (shouldLoadMovies) {
-            setMoviePage(prev => prev + 1);
-          }
+          if (shouldLoadAnime) setAnimePage(prev => prev + 1);
+          if (shouldLoadMovies) setMoviePage(prev => prev + 1);
+          if (shouldLoadManga) setMangaPage(prev => prev + 1);
+          if (shouldLoadTV) setTvPage(prev => prev + 1);
           
           // Reset loading state after a delay
           setTimeout(() => setIsLoadingMore(false), 500);
@@ -228,7 +338,7 @@ export function SearchPage() {
 
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [loading, isLoadingMore, hasMoreAnime, hasMoreMovies, filters.type]);
+  }, [loading, isLoadingMore, hasMoreAnime, hasMoreMovies, hasMoreManga, hasMoreTV, filters.type]);
 
   return (
     <div className="min-h-screen">

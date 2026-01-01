@@ -3,8 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { CardList } from '../components/CardList';
 import { Loader } from '../components/Loader';
 import { ErrorMessage } from '../components/ErrorMessage';
-import { MediaItem, Anime, Movie, convertAnimeToMediaItem, convertMovieToMediaItem } from '../types';
-import { Sparkles, TrendingUp } from 'lucide-react';
+import { MediaItem, Anime, Movie, Manga, TV, convertAnimeToMediaItem, convertMovieToMediaItem, convertMangaToMediaItem, convertTVToMediaItem } from '../types';
+import { Sparkles, TrendingUp, BookOpen, Tv } from 'lucide-react';
 import { motion } from 'motion/react';
 import axios from 'axios';
 import { Anime_ENDPOINTS, Movie_ENDPOINTS } from '../api';
@@ -38,8 +38,36 @@ export function HomePage() {
     staleTime: 1000 * 60 * 30, // 30 minutes
   });
 
-  const loading = animeLoading || moviesLoading;
-  const error = animeError?.message || moviesError?.message || null;
+  // Fetch top manga with caching
+  const { data: manga = [], isLoading: mangaLoading, error: mangaError } = useQuery({
+    queryKey: ['topManga'],
+    queryFn: async () => {
+      const response = await axios.get(Anime_ENDPOINTS.TOP_MANGA, {
+        params: { limit: 10, page: 1 }
+      });
+      return response.data.data.slice(0, 10).map((mangaData: Manga) => convertMangaToMediaItem(mangaData));
+    },
+    staleTime: 1000 * 60 * 30, // 30 minutes
+  });
+
+  // Fetch popular TV series with caching
+  const { data: tvSeries = [], isLoading: tvLoading, error: tvError } = useQuery({
+    queryKey: ['popularTV'],
+    queryFn: async () => {
+      const response = await axios.get(Movie_ENDPOINTS.POPULAR_TV, {
+        params: {
+          api_key: import.meta.env.VITE_TMDB_API_KEY,
+          language: 'en-US',
+          page: 1
+        }
+      });
+      return response.data.results.slice(0, 10).map((tvData: TV) => convertTVToMediaItem(tvData));
+    },
+    staleTime: 1000 * 60 * 30, // 30 minutes
+  });
+
+  const loading = animeLoading || moviesLoading || mangaLoading || tvLoading;
+  const error = animeError?.message || moviesError?.message || mangaError?.message || tvError?.message || null;
 
   return (
     <div className="min-h-screen">
@@ -67,47 +95,88 @@ export function HomePage() {
       </section>
 
       {/* Content Sections */}
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-12">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {error && <ErrorMessage message={error} />}
 
-        {loading ? (
-          <>
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <TrendingUp className="h-5 w-5" />
-                <h2>Trending Anime</h2>
-              </div>
-              <Loader count={6} />
-            </div>
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <TrendingUp className="h-5 w-5" />
-                <h2>Popular Movies</h2>
-              </div>
-              <Loader count={6} />
-            </div>
-          </>
-        ) : (
-          <>
-            {/* Trending Anime */}
-            <section>
-              <div className="flex items-center gap-2 mb-4">
-                <TrendingUp className="h-5 w-5" />
-                <h2>Trending Anime</h2>
-              </div>
-              <CardList items={anime} />
-            </section>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+          {/* Anime & Manga Column */}
+          <div className="space-y-12">
+            {loading ? (
+              <>
+                <div>
+                  <div className="flex items-center gap-2 mb-4">
+                    <TrendingUp className="h-5 w-5 text-primary" />
+                    <h2>Trending Anime</h2>
+                  </div>
+                  <Loader count={4} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 mb-4">
+                    <BookOpen className="h-5 w-5 text-primary" />
+                    <h2>Top Manga</h2>
+                  </div>
+                  <Loader count={4} />
+                </div>
+              </>
+            ) : (
+              <>
+                <section>
+                  <div className="flex items-center gap-2 mb-4">
+                    <TrendingUp className="h-5 w-5 text-primary" />
+                    <h2>Trending Anime</h2>
+                  </div>
+                  <CardList items={anime} />
+                </section>
+                <section>
+                  <div className="flex items-center gap-2 mb-4">
+                    <BookOpen className="h-5 w-5 text-primary" />
+                    <h2>Top Manga</h2>
+                  </div>
+                  <CardList items={manga} />
+                </section>
+              </>
+            )}
+          </div>
 
-            {/* Popular Movies */}
-            <section>
-              <div className="flex items-center gap-2 mb-4">
-                <TrendingUp className="h-5 w-5" />
-                <h2>Popular Movies</h2>
-              </div>
-              <CardList items={movies} />
-            </section>
-          </>
-        )}
+          {/* Movies & TV Column */}
+          <div className="space-y-12">
+            {loading ? (
+              <>
+                <div>
+                  <div className="flex items-center gap-2 mb-4">
+                    <TrendingUp className="h-5 w-5 text-secondary" />
+                    <h2>Popular Movies</h2>
+                  </div>
+                  <Loader count={4} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 mb-4">
+                    <Tv className="h-5 w-5 text-secondary" />
+                    <h2>Popular TV Series</h2>
+                  </div>
+                  <Loader count={4} />
+                </div>
+              </>
+            ) : (
+              <>
+                <section>
+                  <div className="flex items-center gap-2 mb-4">
+                    <TrendingUp className="h-5 w-5 text-secondary" />
+                    <h2>Popular Movies</h2>
+                  </div>
+                  <CardList items={movies} />
+                </section>
+                <section>
+                  <div className="flex items-center gap-2 mb-4">
+                    <Tv className="h-5 w-5 text-secondary" />
+                    <h2>Popular TV Series</h2>
+                  </div>
+                  <CardList items={tvSeries} />
+                </section>
+              </>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

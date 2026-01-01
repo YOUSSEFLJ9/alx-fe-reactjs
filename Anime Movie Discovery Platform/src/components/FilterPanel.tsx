@@ -74,6 +74,8 @@ export function FilterPanel({ filters, onFilterChange }: FilterPanelProps) {
                 <SelectItem value="all">All</SelectItem>
                 <SelectItem value="anime">Anime</SelectItem>
                 <SelectItem value="movie">Movie</SelectItem>
+                <SelectItem value="manga">Manga</SelectItem>
+                <SelectItem value="tv">TV Series</SelectItem>
               </SelectContent>
             </Select>
           </div>

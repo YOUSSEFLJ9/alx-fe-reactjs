@@ -16,6 +16,22 @@ export interface Anime {
   type?: string;
 }
 
+export interface Manga {
+  mal_id: number;
+  title: string;
+  images: {
+    jpg: {
+      large_image_url: string;
+    };
+  };
+  score: number;
+  chapters: number;
+  volumes: number;
+  synopsis: string;
+  genres: Array<{ mal_id: number; name: string }>;
+  published?: { prop: { from: { year: number } } };
+}
+
 export interface Movie {
   id: number;
   title: string;
@@ -36,23 +52,38 @@ export interface Movie {
   runtime?: number;
 }
 
+export interface TV {
+  id: number;
+  name: string;
+  poster_path: string;
+  vote_average: number;
+  overview: string;
+  first_air_date: string;
+  genre_ids?: number[];
+  genres?: Array<{ id: number; name: string }>;
+  number_of_episodes?: number;
+  number_of_seasons?: number;
+}
+
 export interface MediaItem {
   id: number;
   title: string;
   posterUrl: string;
   rating: number;
-  type: 'anime' | 'movie';
+  type: 'anime' | 'movie' | 'manga' | 'tv';
   genres: string[];
   description: string;
   year?: number;
   episodes?: number;
   runtime?: number;
+  chapters?: number;
+  volumes?: number;
 }
 
 export interface FilterOptions {
   genre: string;
   rating: string;
-  type: 'all' | 'anime' | 'movie';
+  type: 'all' | 'anime' | 'movie' | 'manga' | 'tv';
   yearFrom: number;
   yearTo: number;
   sortBy: 'rating' | 'releaseDate' | 'popularity';
@@ -66,12 +97,27 @@ export function convertAnimeToMediaItem(anime: Anime): MediaItem {
     id: anime.mal_id,
     title: anime.title,
     posterUrl: anime.images.jpg.large_image_url,
-    rating: anime.score,
+    rating: anime.score || 0,
     type: 'anime',
     genres: anime.genres.map((genre) => genre.name),
     description: anime.synopsis,
     year: anime.year,
     episodes: anime.episodes,
+  };
+}
+
+export function convertMangaToMediaItem(manga: Manga): MediaItem {
+  return {
+    id: manga.mal_id,
+    title: manga.title,
+    posterUrl: manga.images.jpg.large_image_url,
+    rating: manga.score || 0,
+    type: 'manga',
+    genres: manga.genres.map((genre) => genre.name),
+    description: manga.synopsis,
+    year: manga.published?.prop?.from?.year,
+    chapters: manga.chapters,
+    volumes: manga.volumes,
   };
 }
 
@@ -104,7 +150,7 @@ export function convertMovieToMediaItem(movie: Movie): MediaItem {
     id: movie.id,
     title: movie.title,
     posterUrl: `https://image.tmdb.org/t/p/w500${movie.poster_path}`,
-    rating: movie.vote_average,
+    rating: movie.vote_average || 0,
     type: "movie",
     genres: genres,
     description: movie.overview,
@@ -112,6 +158,26 @@ export function convertMovieToMediaItem(movie: Movie): MediaItem {
       ? parseInt(movie.release_date.split("-")[0])
       : undefined,
     runtime: movie.runtime,
+  };
+}
+
+export function convertTVToMediaItem(tv: TV): MediaItem {
+  const genres = tv.genres
+    ? tv.genres.map(g => g.name)
+    : tv.genre_ids?.map((id) => MOVIE_GENRES[id] ?? "Unknown") || [];
+
+  return {
+    id: tv.id,
+    title: tv.name,
+    posterUrl: `https://image.tmdb.org/t/p/w500${tv.poster_path}`,
+    rating: tv.vote_average || 0,
+    type: "tv",
+    genres: genres,
+    description: tv.overview,
+    year: tv.first_air_date
+      ? parseInt(tv.first_air_date.split("-")[0])
+      : undefined,
+    episodes: tv.number_of_episodes,
   };
 }
 
