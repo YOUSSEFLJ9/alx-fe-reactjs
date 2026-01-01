@@ -53,6 +53,10 @@ export interface FilterOptions {
   genre: string;
   rating: string;
   type: 'all' | 'anime' | 'movie';
+  yearFrom: number;
+  yearTo: number;
+  sortBy: 'rating' | 'releaseDate' | 'popularity';
+  sortOrder: 'asc' | 'desc';
 }
 
 

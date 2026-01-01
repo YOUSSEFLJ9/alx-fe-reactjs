@@ -15,11 +15,16 @@ export function SearchPage() {
     genre: 'all',
     rating: 'all',
     type: 'all',
+    yearFrom: 1900,
+    yearTo: new Date().getFullYear(),
+    sortBy: 'rating',
+    sortOrder: 'desc',
   });
   const [animePage, setAnimePage] = useState(1);
   const [moviePage, setMoviePage] = useState(1);
+  const [allAnimeItems, setAllAnimeItems] = useState<MediaItem[]>([]);
+  const [allMovieItems, setAllMovieItems] = useState<MediaItem[]>([]);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [results, setResults] = useState<MediaItem[]>([]);
 
   // Fetch anime - either top or search based on query
   const { data: animeData, isLoading: animeLoading } = useQuery({
@@ -97,61 +102,133 @@ export function SearchPage() {
 
   const loading = animeLoading || movieLoading;
 
-  // Combine and apply filters to results
+  // Accumulate anime items for infinite scroll
   useEffect(() => {
-    let combined: MediaItem[] = [];
-    
-    if (animeData?.items) combined = [...combined, ...animeData.items];
-    if (movieData?.items) combined = [...combined, ...movieData.items];
+    if (animeData?.items) {
+      setAllAnimeItems(prev => {
+        // Reset on page 1 (new search/filter)
+        if (animePage === 1) return animeData.items;
+        // Append new items for pagination
+        const existingIds = new Set(prev.map(item => item.id));
+        const newItems = animeData.items.filter(item => !existingIds.has(item.id));
+        return [...prev, ...newItems];
+      });
+    }
+  }, [animeData, animePage]);
 
-    // Apply client-side filters
-    let filtered = combined;
-    
+  // Accumulate movie items for infinite scroll
+  useEffect(() => {
+    if (movieData?.items) {
+      setAllMovieItems(prev => {
+        // Reset on page 1 (new search/filter)
+        if (moviePage === 1) return movieData.items;
+        // Append new items for pagination
+        const existingIds = new Set(prev.map(item => item.id));
+        const newItems = movieData.items.filter(item => !existingIds.has(item.id));
+        return [...prev, ...newItems];
+      });
+    }
+  }, [movieData, moviePage]);
+
+  // Reset pages when search query or filter type changes
+  useEffect(() => {
+    setAnimePage(1);
+    setMoviePage(1);
+    setAllAnimeItems([]);
+    setAllMovieItems([]);
+  }, [searchQuery, filters.type]);
+
+  // Helper function to apply all filters and sorting
+  const applyFiltersAndSort = (items: MediaItem[]): MediaItem[] => {
+    let filtered = items;
+
+    // Filter by genre
     if (filters.genre !== 'all') {
       filtered = filtered.filter((item) =>
         item.genres.some(genre => genre.toLowerCase() === filters.genre.toLowerCase())
       );
     }
 
+    // Filter by rating
     if (filters.rating !== 'all') {
       const minRating = parseFloat(filters.rating);
       filtered = filtered.filter((item) => item.rating >= minRating);
     }
 
-    setResults(filtered);
-  }, [animeData, movieData, filters]);
+    // Filter by release year
+    if (filters.yearFrom !== 1900 || filters.yearTo !== new Date().getFullYear()) {
+      filtered = filtered.filter((item) => {
+        const itemYear = item.year || 0;
+        return itemYear >= filters.yearFrom && itemYear <= filters.yearTo;
+      });
+    }
+
+    // Apply sorting
+    const sorted = [...filtered].sort((a, b) => {
+      let compareValue = 0;
+
+      switch (filters.sortBy) {
+        case 'rating':
+          compareValue = a.rating - b.rating;
+          break;
+        case 'releaseDate':
+          const yearA = a.year || 0;
+          const yearB = b.year || 0;
+          compareValue = yearA - yearB;
+          break;
+        case 'popularity':
+          // Using rating as a proxy for popularity since we don't have a separate popularity field
+          compareValue = a.rating - b.rating;
+          break;
+      }
+
+      return filters.sortOrder === 'asc' ? compareValue : -compareValue;
+    });
+
+    return sorted;
+  };
+
+  // Apply filters and sorting to accumulated results
+  const filteredResults = applyFiltersAndSort([
+    ...(filters.type === 'all' || filters.type === 'anime' ? allAnimeItems : []),
+    ...(filters.type === 'all' || filters.type === 'movie' ? allMovieItems : []),
+  ]);
 
   const hasMoreAnime = animeData?.hasMore || false;
   const hasMoreMovies = movieData?.hasMore || false;
 
-  const handleLoadMore = () => {
-    setIsLoadingMore(true);
-    if (hasMoreAnime && (filters.type === 'all' || filters.type === 'anime')) {
-      setAnimePage(prev => prev + 1);
-    }
-    if (hasMoreMovies && (filters.type === 'all' || filters.type === 'movie')) {
-      setMoviePage(prev => prev + 1);
-    }
-    setIsLoadingMore(false);
-  };
-
-  // Scroll listener for infinite loading
+  // Handle loading more content
   useEffect(() => {
     const handleScroll = () => {
       const scrollTop = document.documentElement.scrollTop;
       const scrollHeight = document.documentElement.scrollHeight;
       const clientHeight = document.documentElement.clientHeight;
 
-      if (scrollTop + clientHeight >= scrollHeight - 200 && !loading) {
-        if (hasMoreAnime || hasMoreMovies) {
-          handleLoadMore();
+      // Trigger load more when near bottom
+      if (scrollTop + clientHeight >= scrollHeight - 200 && !loading && !isLoadingMore) {
+        const shouldLoadAnime = (filters.type === 'all' || filters.type === 'anime') && hasMoreAnime;
+        const shouldLoadMovies = (filters.type === 'all' || filters.type === 'movie') && hasMoreMovies;
+        
+        if (shouldLoadAnime || shouldLoadMovies) {
+          setIsLoadingMore(true);
+          
+          // Load next page
+          if (shouldLoadAnime) {
+            setAnimePage(prev => prev + 1);
+          }
+          if (shouldLoadMovies) {
+            setMoviePage(prev => prev + 1);
+          }
+          
+          // Reset loading state after a delay
+          setTimeout(() => setIsLoadingMore(false), 500);
         }
       }
     };
 
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [hasMoreAnime, hasMoreMovies, loading]);
+  }, [loading, isLoadingMore, hasMoreAnime, hasMoreMovies, filters.type]);
 
   return (
     <div className="min-h-screen">
@@ -178,20 +255,20 @@ export function SearchPage() {
 
           {/* Results */}
           <main className="lg:col-span-3">
-            {loading ? (
+            {loading && filteredResults.length === 0 ? (
               <Loader count={12} />
-            ) : results.length > 0 ? (
+            ) : filteredResults.length > 0 ? (
               <div className="space-y-4">
                 <p className="text-muted-foreground">
-                  Found {results.length} result{results.length !== 1 ? 's' : ''}
+                  Found {filteredResults.length} result{filteredResults.length !== 1 ? 's' : ''}
                 </p>
-                <CardList items={results} />
+                <CardList items={filteredResults} />
                 {isLoadingMore && (
                   <div className="py-8">
                     <Loader count={6} />
                   </div>
                 )}
-                {!isLoadingMore && !hasMoreAnime && !hasMoreMovies && results.length > 0 && (
+                {!isLoadingMore && !hasMoreAnime && !hasMoreMovies && filteredResults.length > 0 && (
                   <p className="text-center text-muted-foreground py-8">
                     No more results to load
                   </p>
