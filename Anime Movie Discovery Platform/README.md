@@ -214,23 +214,6 @@ npx kill-port 5173
 npm run dev
 ```
 
-## 🤝 Contributing
-
-Contributions are welcome! To contribute:
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
-
-## 📄 License
-
-This project is open source and available under the MIT License.
-
-## 📞 Support
-
-For issues, questions, or suggestions, please open an issue on the repository.
-
 ## 🙏 Acknowledgments
 
 - [Jikan](https://jikan.moe/) - Anime/Manga API
